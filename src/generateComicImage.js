@@ -1,11 +1,8 @@
-/**
- * Module to generate comic-styled images and save them locally
- */
-
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import {getPRsAndCreatePrompt} from './getPreviousDayPRs.js';
 
 dotenv.config();
 
@@ -44,9 +41,10 @@ async function generateImage(prompt, pollinationsToken, attempt = 0) {
       model: 'nanobanana',
       width: 1024,
       height: 1024,
+      seed: Math.floor(Math.random() * 1000000).toString(),
     });
-
-    const response = await fetch(`${POLLINATIONS_IMAGE_API}/${encodeURIComponent(prompt)}?model=${params.get('model')}&width=${params.get('width')}&height=${params.get('height')}`, {
+    const URL = `${POLLINATIONS_IMAGE_API}/${encodeURIComponent(prompt)}?model=${params.get('model')}&width=${params.get('width')}&height=${params.get('height')}&seed=${params.get('seed')}`;
+    const response = await fetch(`${URL}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${process.env.POLLINATIONS_TOKEN}`,
@@ -57,7 +55,7 @@ async function generateImage(prompt, pollinationsToken, attempt = 0) {
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-
+    console.log(`URL: ${URL}`);
     return Buffer.from(await response.arrayBuffer());
   } catch (error) {
     if (attempt < MAX_RETRIES - 1) {
@@ -116,52 +114,15 @@ async function generateAndSaveComicImage(promptData, pollinationsToken = null) {
   }
 }
 
-/**
- * Save generation metadata to JSON
- */
-function saveGenerationMetadata(imageData, promptData) {
-  try {
-    const outputDir = ensureOutputDirectory();
-    const metadataFilename = `${imageData.timestamp}-metadata.json`;
-    const metadataPath = path.join(outputDir, metadataFilename);
 
-    const metadata = {
-      generatedAt: new Date().toISOString(),
-      imageFilename: imageData.filename,
-      imagePath: imageData.filepath,
-      filesize: imageData.filesize,
-      prompt: imageData.prompt,
-      prSummary: promptData.summary,
-      prHighlights: promptData.highlights,
-      prReferences: promptData.prs,
-    };
-
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
-    console.log(`✓ Metadata saved: ${metadataPath}\n`);
-
-    return metadataPath;
-  } catch (error) {
-    console.error('Error saving metadata:', error);
-    return null;
-  }
-}
-
-/**
- * Test image generation
- */
 async function testGenerateImage() {
-  const testPrompt = {
-    prompt: 'Bright nature-themed comic flowchart where each update is a distinct natural element: pruned branches for removing decrypt from the start script, blooming flowers for adding a Reddit link and updating the submit app template, and a vibrant flower cluster for “Highlights” plus a new treehouse labeled AI Chat Studio. Reorganized vine pathways show standardized infrastructure keys and secret cleanup, nesting animals depict workflow gating and auto-upgrade on approval, and a small cloud shading a “z-image” flower indicates upscaling temporarily disabled with the safety checker sleeping by default. Add a signpost leaf for API docs with a vision/image input example, all in emerald, golden, sky blue, orange, and purple with dynamic wind swirls, pollen bursts, water streams, and bee flight paths connecting nodes.',
-    summary: 'Test image generation',
-    prCount: 1,
-    highlights: ['test: image generation'],
-    prs: [],
-  };
+  const githubToken = process.env.GITHUB_TOKEN;
 
   console.log('\n╔════════════════════════════════════════════════════════════╗');
   console.log('║              TEST IMAGE GENERATION                         ║');
   console.log('╚════════════════════════════════════════════════════════════╝\n');
 
+  const prompt = await getPRsAndCreatePrompt(githubToken);
   const result = await generateAndSaveComicImage(testPrompt);
 
   if (result.success) {
