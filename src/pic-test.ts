@@ -335,3 +335,64 @@ describe('Image Generation Tests', () => {
   });
 });
 
+// Main execution
+(async () => {
+    try {
+        console.log(`\n📦 Fetching PRs from ${sourceRepo} (last ${daysBack} days)...`);
+        const [startDate] = getDateRange(daysBack);
+        fetchedPRs = await getMergedPRs(sourceOwner, sourceRepoName, startDate, githubToken);
+        console.log(`✅ Found ${fetchedPRs.length} merged PRs\n`);
+
+        // Test 1: Verify PRs were fetched
+        console.log('Test 1: Fetching real merged PRs from source repo');
+        if (fetchedPRs.length > 0) {
+            console.log(`  ✓ PR #${fetchedPRs[0].number}: ${fetchedPRs[0].title}`);
+        }
+
+        // Test 2: Generate image from prompt
+        const prompt = 'Modern AI interface with glowing neon effects, futuristic design, digital art';
+        console.log(`\nTest 2: Generating image from prompt: "${prompt}"`);
+        const [imageBytes, imageUrl] = await generateImage(prompt, pollinationsToken, 0);
+        
+        if (imageBytes) {
+            const outputDir = path.join(process.cwd(), 'generated_images');
+            if (!fs.existsSync(outputDir)) {
+                fs.mkdirSync(outputDir, { recursive: true });
+            }
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filepath = path.join(outputDir, `image_${timestamp}.png`);
+            fs.writeFileSync(filepath, imageBytes);
+            console.log(`  ✅ Image saved: ${filepath}`);
+        }
+
+        // Test 3: Generate image from PR title
+        if (fetchedPRs.length > 0) {
+            const firstPR = fetchedPRs[0];
+            const prPrompt = `Modern implementation inspired by: "${firstPR.title}" - AI, tech, innovation`;
+            console.log(`\nTest 3: Generating image from PR title: "${firstPR.title}"`);
+            const [prImageBytes, prImageUrl] = await generateImage(prPrompt, pollinationsToken, 1);
+            
+            if (prImageBytes) {
+                const outputDir = path.join(process.cwd(), 'generated_images');
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filepath = path.join(outputDir, `image_pr${firstPR.number}_${timestamp}.png`);
+                fs.writeFileSync(filepath, prImageBytes);
+                console.log(`  ✅ Image saved: ${filepath}`);
+            }
+        }
+
+        // Test 4: List all PRs
+        console.log(`\nTest 4: PRs found (total: ${fetchedPRs.length}):`);
+        if (fetchedPRs.length > 0) {
+            fetchedPRs.slice(0, 5).forEach((pr) => {
+                console.log(`  #${pr.number}: ${pr.title} (by ${pr.author})`);
+            });
+            if (fetchedPRs.length > 5) {
+                console.log(`  ... and ${fetchedPRs.length - 5} more`);
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        process.exit(1);
+    }
+})();
