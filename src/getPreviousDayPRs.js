@@ -35,7 +35,7 @@ async function getMergedPRsFromPreviousDay(owner = 'pollinations', repo = 'polli
   const { startDate, endDate, dateString } = getPreviousDayRange();
 
   const query = `
-    query($owner: String!, $repo: String!, $startDate: DateTime!, $endDate: DateTime!, $cursor: String) {
+    query($owner: String!, $repo: String!, $cursor: String) {
       repository(owner: $owner, name: $repo) {
         pullRequests(
           states: MERGED
@@ -113,7 +113,7 @@ async function getMergedPRsFromPreviousDay(owner = 'pollinations', repo = 'polli
       for (const pr of nodes) {
         const mergedDate = new Date(pr.mergedAt);
 
-        // Filter PRs from previous day only
+        // Filter PRs from previous day only (stop if we go before previous day)
         if (mergedDate >= startDate && mergedDate < endDate) {
           allPRs.push({
             number: pr.number,
@@ -124,10 +124,15 @@ async function getMergedPRsFromPreviousDay(owner = 'pollinations', repo = 'polli
             labels: pr.labels?.nodes?.map(l => l.name) || [],
             mergedAt: pr.mergedAt,
           });
+        } else if (mergedDate < startDate) {
+          // Stop fetching if we've gone past the previous day
+          console.log(`  Stopping: reached PRs before ${dateString}`);
+          pageNum = 999; // Force exit of while loop
+          break;
         }
       }
 
-      if (!pageInfo.hasNextPage) break;
+      if (!pageInfo.hasNextPage || pageNum > 100) break;
 
       cursor = pageInfo.endCursor;
       pageNum++;
@@ -145,7 +150,7 @@ async function getMergedPRsFromPreviousDay(owner = 'pollinations', repo = 'polli
  * Create a merged prompt covering all PR ideas using Pollinations AI
  * Sends PR data to openai-large model for better prompt generation
  */
-async function createMergedPrompt(prs, pollinationsToken) {
+async function createMergedPrompt(prs) {
   if (!prs || prs.length === 0) {
     return {
       prompt: 'Pollinations: A free, open-source AI image generation platform with community updates',
@@ -207,7 +212,7 @@ Create a dynamic, visually compelling comic book style prompt that celebrates th
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${pollinationsToken || 'sk_default'}`,
+        'Authorization': `Bearer ${process.env.POLLINATIONS_TOKEN}`,
       },
       body: JSON.stringify({
         model: 'openai-large',
@@ -297,10 +302,10 @@ Dynamic composition with bees pollinating code flowers, bright colors, retro com
 /**
  * Main export function
  */
-async function getPRsAndCreatePrompt(githubToken, pollinationsToken) {
+async function getPRsAndCreatePrompt(githubToken) {
   try {
     const prs = await getMergedPRsFromPreviousDay('pollinations', 'pollinations', githubToken);
-    const promptData = await createMergedPrompt(prs, pollinationsToken);
+    const promptData = await createMergedPrompt(prs);
 
     console.log('=== Merged PR Summary ===');
     console.log(promptData.summary);
@@ -320,11 +325,12 @@ async function getPRsAndCreatePrompt(githubToken, pollinationsToken) {
  * Usage: node getPreviousDayPRs.js <github_token> [pollinations_token]
  */
 async function testPRFetching() {
-  const githubToken = process.env.GITHUB_TOKEN 
-  const pollinationsToken = process.env.POLLINATIONS_TOKEN;
+  const githubToken = process.env.GITHUB_TOKEN;
 
   if (!githubToken) {
-    console.error('Usage: node getPreviousDayPRs.js <github_token> [pollinations_token]');
+    console.error('❌ GitHub token required!');
+    console.error('Usage: GITHUB_TOKEN=xxx node getPreviousDayPRs.js');
+    console.error('   or: node getPreviousDayPRs.js <github_token> [pollinations_token]');
     process.exit(1);
   }
 
@@ -333,7 +339,7 @@ async function testPRFetching() {
   console.log('╚════════════════════════════════════════════════════════════╝\n');
 
   try {
-    const result = await getPRsAndCreatePrompt(githubToken, pollinationsToken);
+    const result = await getPRsAndCreatePrompt(githubToken);
 
     console.log('╔════════════════════════════════════════════════════════════╗');
     console.log('║                  TEST PASSED ✓                            ║');
@@ -349,4 +355,4 @@ async function testPRFetching() {
 
 
 testPRFetching().catch(console.error);
-// export { getMergedPRsFromPreviousDay, createMergedPrompt, getPRsAndCreatePrompt, getPreviousDayRange };
+export { getMergedPRsFromPreviousDay, createMergedPrompt, getPRsAndCreatePrompt, getPreviousDayRange };
