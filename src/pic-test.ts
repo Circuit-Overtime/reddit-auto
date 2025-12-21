@@ -1,9 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
 import axios from 'axios';
 import * as fs from 'fs';
 import dotenv from 'dotenv';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 dotenv.config();
 
@@ -124,6 +122,27 @@ async function getMergedPRs(
   return allPRs;
 }
 
+// Extract central idea from PR title and create comic book style prompt
+function createComicBookPrompt(prTitle: string, prBody: string = ''): string {
+  // Extract key concepts from title
+  const keywords = prTitle
+    .toLowerCase()
+    .split(/[\s\-():,]/)
+    .filter((word) => word.length > 3 && !['the', 'for', 'and', 'with', 'from', 'that', 'this'].includes(word))
+    .slice(0, 3);
+
+  const centralIdea = keywords.join(', ') || 'innovation';
+
+  // Comic book style with nature/bee theme
+  return `Comic book style illustration of "${prTitle}". 
+  Central concept: ${centralIdea}. 
+  Style: Bold comic book panels, vibrant colors, action-packed energy, 
+  dynamic composition with tech elements and nature/bee motifs (hexagonal patterns, 
+  honeycomb designs, buzzing energy lines). Pop art sensibility with clean line work, 
+  speech bubbles hinting at innovation, bright neon accents. 
+  Professional digital art, high quality, detailed, engaging.`;
+}
+
 async function generateImage(
   prompt: string,
   token: string,
@@ -137,7 +156,7 @@ async function generateImage(
   const REDDIT_IMAGE_WIDTH = 1080;
   const REDDIT_IMAGE_HEIGHT = 1350;
 
-  console.log(`Generating image ${index + 1}: ${prompt.substring(0, 50)}...`);
+  console.log(`🎨 Generating image ${index + 1}: ${prompt.substring(0, 60)}...`);
 
   let lastError: string | null = null;
 
@@ -157,11 +176,11 @@ async function generateImage(
     };
 
     if (attempt === 0) {
-      console.log(`  Using seed: ${seed}`);
+      console.log(`   └─ Seed: ${seed}`);
     } else {
       const backoffDelay = INITIAL_RETRY_DELAY * Math.pow(2, attempt);
       console.log(
-        `  Retry ${attempt}/${MAX_RETRIES - 1} with new seed: ${seed} (waiting ${backoffDelay}s)`
+        `   └─ Retry ${attempt}/${MAX_RETRIES - 1}, new seed: ${seed} (${backoffDelay}s delay)`
       );
       await new Promise((resolve) => setTimeout(resolve, backoffDelay * 1000));
     }
@@ -178,7 +197,7 @@ async function generateImage(
 
         if (imageBytes.length < 1000) {
           lastError = `Image too small (${imageBytes.length} bytes)`;
-          console.log(`  ${lastError}`);
+          console.log(`   └─ ⚠️  ${lastError}`);
           continue;
         }
 
@@ -196,13 +215,14 @@ async function generateImage(
 
         if (!isJpeg && !isPng && !isWebp) {
           lastError = `Invalid image format`;
-          console.log(`  ${lastError}`);
+          console.log(`   └─ ⚠️  ${lastError}`);
           continue;
         }
 
         const imgFormat = isJpeg ? 'JPEG' : isPng ? 'PNG' : 'WebP';
+        const sizeKB = (imageBytes.length / 1024).toFixed(2);
         console.log(
-          `  Image ${index + 1} generated successfully (${imgFormat}, ${imageBytes.length.toLocaleString()} bytes)`
+          `   └─ ✅ Generated! (${imgFormat}, ${sizeKB} KB)`
         );
 
         const publicParams = Object.fromEntries(
@@ -219,11 +239,11 @@ async function generateImage(
       }
     } catch (error) {
       lastError = `Request error: ${error}`;
-      console.log(`  ${lastError}`);
+      console.log(`   └─ ⚠️  ${lastError}`);
     }
   }
 
-  console.log(`  Failed to generate image ${index + 1} after ${MAX_RETRIES} attempts`);
+  console.log(`   └─ ❌ Failed after ${MAX_RETRIES} attempts`);
   return [null, null];
 }
 
@@ -233,156 +253,44 @@ const sourceRepo = getEnv('SOURCE_REPO', false) || 'pollinations/pollinations';
 const [sourceOwner, sourceRepoName] = sourceRepo.split('/');
 const daysBack = parseInt(getEnv('DAYS_BACK', false) || '1');
 
-let fetchedPRs: any[] = [];
-
-describe('Image Generation Tests', () => {
-  beforeAll(async () => {
-    console.log(`\n📦 Fetching PRs from ${sourceRepo} (last ${daysBack} days)...`);
-    const [startDate] = getDateRange(daysBack);
-    fetchedPRs = await getMergedPRs(sourceOwner, sourceRepoName, startDate, githubToken);
-    console.log(`✅ Found ${fetchedPRs.length} merged PRs\n`);
-  });
-
-  it('should fetch real merged PRs from source repo', async () => {
-    expect(fetchedPRs).toBeDefined();
-    expect(Array.isArray(fetchedPRs)).toBe(true);
-    if (fetchedPRs.length > 0) {
-      expect(fetchedPRs[0]).toHaveProperty('number');
-      expect(fetchedPRs[0]).toHaveProperty('title');
-      expect(fetchedPRs[0]).toHaveProperty('author');
-      console.log(`  ✓ PR #${fetchedPRs[0].number}: ${fetchedPRs[0].title}`);
-    }
-  });
-
-  it('should generate and save actual image', async () => {
-    const prompt = 'Modern AI interface with glowing neon effects, futuristic design, digital art';
-    console.log(`\n🎨 Generating image from prompt: "${prompt}"`);
-
-    const [imageBytes, imageUrl] = await generateImage(prompt, pollinationsToken, 0);
-
-    expect(imageBytes).not.toBeNull();
-    expect(imageUrl).not.toBeNull();
-    expect(imageBytes).toBeInstanceOf(Buffer);
-
-    // Create output directory if it doesn't exist
-    const outputDir = path.join(process.cwd(), 'generated_images');
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-      console.log(`  📁 Created directory: ${outputDir}`);
-    }
-
-    // Save image to file
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `image_${timestamp}.png`;
-    const filepath = path.join(outputDir, filename);
-
-    if (imageBytes) {
-      fs.writeFileSync(filepath, imageBytes);
-      const fileSizeKB = (imageBytes.length / 1024).toFixed(2);
-      console.log(`  ✅ Image saved: ${filepath} (${fileSizeKB} KB)`);
-      console.log(`  🔗 Public URL: ${imageUrl}`);
-    }
-  });
-
-  it('should generate and save image from first PR title if available', async () => {
-    if (fetchedPRs.length === 0) {
-      console.log('  ⚠️  No PRs available to use as image prompt');
-      expect(true).toBe(true);
-      return;
-    }
-
-    const firstPR = fetchedPRs[0];
-    const prompt = `Modern implementation inspired by: "${firstPR.title}" - AI, tech, innovation`;
-    
-    console.log(`\n🎨 Generating image from PR title: "${firstPR.title}"`);
-
-    const [imageBytes, imageUrl] = await generateImage(prompt, pollinationsToken, 1);
-
-    expect(imageBytes).not.toBeNull();
-    expect(imageUrl).not.toBeNull();
-
-    const outputDir = path.join(process.cwd(), 'generated_images');
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `image_pr${firstPR.number}_${timestamp}.png`;
-    const filepath = path.join(outputDir, filename);
-
-    if (imageBytes) {
-      fs.writeFileSync(filepath, imageBytes);
-      const fileSizeKB = (imageBytes.length / 1024).toFixed(2);
-      console.log(`  ✅ Image saved: ${filepath} (${fileSizeKB} KB)`);
-      console.log(`  🔗 Public URL: ${imageUrl}`);
-      console.log(`  📝 PR Reference: #${firstPR.number}`);
-    }
-  });
-
-  it('should list all PRs found', () => {
-    console.log(`\n📋 PRs found (total: ${fetchedPRs.length}):`);
-    if (fetchedPRs.length === 0) {
-      console.log('  No PRs found');
-    } else {
-      fetchedPRs.slice(0, 5).forEach((pr) => {
-        console.log(`  #${pr.number}: ${pr.title} (by ${pr.author})`);
-      });
-      if (fetchedPRs.length > 5) {
-        console.log(`  ... and ${fetchedPRs.length - 5} more`);
-      }
-    }
-    expect(fetchedPRs).toBeDefined();
-  });
-});
-
 // Main execution
 (async () => {
     try {
         console.log(`\n📦 Fetching PRs from ${sourceRepo} (last ${daysBack} days)...`);
         const [startDate] = getDateRange(daysBack);
-        fetchedPRs = await getMergedPRs(sourceOwner, sourceRepoName, startDate, githubToken);
+        const fetchedPRs = await getMergedPRs(sourceOwner, sourceRepoName, startDate, githubToken);
         console.log(`✅ Found ${fetchedPRs.length} merged PRs\n`);
 
-        // Test 1: Verify PRs were fetched
-        console.log('Test 1: Fetching real merged PRs from source repo');
-        if (fetchedPRs.length > 0) {
-            console.log(`  ✓ PR #${fetchedPRs[0].number}: ${fetchedPRs[0].title}`);
+        // Create output directory
+        const outputDir = path.join(process.cwd(), 'generated_images');
+        if (!fs.existsSync(outputDir)) {
+          fs.mkdirSync(outputDir, { recursive: true });
+          console.log(`📁 Created directory: ${outputDir}\n`);
         }
 
-        // Test 2: Generate image from prompt
-        const prompt = 'Modern AI interface with glowing neon effects, futuristic design, digital art';
-        console.log(`\nTest 2: Generating image from prompt: "${prompt}"`);
-        const [imageBytes, imageUrl] = await generateImage(prompt, pollinationsToken, 0);
-        
-        if (imageBytes) {
-            const outputDir = path.join(process.cwd(), 'generated_images');
-            if (!fs.existsSync(outputDir)) {
-                fs.mkdirSync(outputDir, { recursive: true });
-            }
+        // Generate image from PR title if available
+        if (fetchedPRs.length > 0) {
+          const firstPR = fetchedPRs[0];
+          const prPrompt = createComicBookPrompt(firstPR.title, firstPR.body);
+          console.log(`🎨 Generating comic book style image for PR #${firstPR.number}: "${firstPR.title}"\n`);
+          
+          const [prImageBytes, prImageUrl] = await generateImage(prPrompt, pollinationsToken, 0);
+          
+          if (prImageBytes) {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filepath = path.join(outputDir, `image_${timestamp}.png`);
-            fs.writeFileSync(filepath, imageBytes);
-            console.log(`  ✅ Image saved: ${filepath}`);
+            const filename = `image_pr${firstPR.number}_${timestamp}.png`;
+            const filepath = path.join(outputDir, filename);
+            fs.writeFileSync(filepath, prImageBytes);
+            const fileSizeKB = (prImageBytes.length / 1024).toFixed(2);
+            console.log(`✅ Image saved: ${filepath} (${fileSizeKB} KB)`);
+            console.log(`🔗 Public URL: ${prImageUrl}`);
+          }
+        } else {
+          console.log('⚠️  No PRs found to generate image from');
         }
 
-        // Test 3: Generate image from PR title
-        if (fetchedPRs.length > 0) {
-            const firstPR = fetchedPRs[0];
-            const prPrompt = `Modern implementation inspired by: "${firstPR.title}" - AI, tech, innovation`;
-            console.log(`\nTest 3: Generating image from PR title: "${firstPR.title}"`);
-            const [prImageBytes, prImageUrl] = await generateImage(prPrompt, pollinationsToken, 1);
-            
-            if (prImageBytes) {
-                const outputDir = path.join(process.cwd(), 'generated_images');
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filepath = path.join(outputDir, `image_pr${firstPR.number}_${timestamp}.png`);
-                fs.writeFileSync(filepath, prImageBytes);
-                console.log(`  ✅ Image saved: ${filepath}`);
-            }
-        }
-
-        // Test 4: List all PRs
-        console.log(`\nTest 4: PRs found (total: ${fetchedPRs.length}):`);
+        // List all PRs
+        console.log(`\n📋 PRs found (total: ${fetchedPRs.length}):`);
         if (fetchedPRs.length > 0) {
             fetchedPRs.slice(0, 5).forEach((pr) => {
                 console.log(`  #${pr.number}: ${pr.title} (by ${pr.author})`);
@@ -391,8 +299,10 @@ describe('Image Generation Tests', () => {
                 console.log(`  ... and ${fetchedPRs.length - 5} more`);
             }
         }
+        
+        console.log('\n✅ Done!');
     } catch (error) {
-        console.error('Error:', error);
+        console.error('❌ Error:', error);
         process.exit(1);
     }
 })();
