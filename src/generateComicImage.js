@@ -226,9 +226,8 @@ async function testGenerateImage() {
   }
 }
 
-// Run test if executed directly
-if (process.argv[1]?.endsWith('generateComicImage.js')) {
-  testGenerateImage().catch(console.error);
-}
 
-export { generateAndSaveComicImage, saveGenerationMetadata, enhanceComicPrompt, testGenerateImage };
+
+
+testGenerateImage().catch(console.error);
+// export { generateAndSaveComicImage, saveGenerationMetadata, enhanceComicPrompt, testGenerateImage };

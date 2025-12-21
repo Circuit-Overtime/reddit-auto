@@ -3,6 +3,8 @@
  * Gets merged PRs from pollinations/pollinations repo
  */
 
+import dotenv from 'dotenv';
+dotenv.config();
 const GITHUB_API_BASE = 'https://api.github.com';
 const GITHUB_GRAPHQL_API = 'https://api.github.com/graphql';
 const POLLINATIONS_API = 'https://gen.pollinations.ai/v1/chat/completions';
@@ -318,8 +320,8 @@ async function getPRsAndCreatePrompt(githubToken, pollinationsToken) {
  * Usage: node getPreviousDayPRs.js <github_token> [pollinations_token]
  */
 async function testPRFetching() {
-  const githubToken = process.argv[2];
-  const pollinationsToken = process.argv[3];
+  const githubToken = process.env.GITHUB_TOKEN 
+  const pollinationsToken = process.env.POLLINATIONS_TOKEN;
 
   if (!githubToken) {
     console.error('Usage: node getPreviousDayPRs.js <github_token> [pollinations_token]');
@@ -344,9 +346,7 @@ async function testPRFetching() {
   }
 }
 
-// Run test if executed directly
-if (process.argv[1]?.endsWith('getPreviousDayPRs.js')) {
-  testPRFetching().catch(console.error);
-}
 
-export { getMergedPRsFromPreviousDay, createMergedPrompt, getPRsAndCreatePrompt, getPreviousDayRange };
+
+testPRFetching().catch(console.error);
+// export { getMergedPRsFromPreviousDay, createMergedPrompt, getPRsAndCreatePrompt, getPreviousDayRange };
