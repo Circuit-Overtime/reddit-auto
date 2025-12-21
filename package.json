@@ -22,7 +22,7 @@
     "devvit": "0.12.6",
     "dotenv-cli": "8.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
+    "typescript": "5.8.3",
     "vitest": "^4.0.16"
   }
 }
