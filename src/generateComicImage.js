@@ -39,13 +39,18 @@ async function generateImage(prompt, pollinationsToken, attempt = 0) {
   }
 
   try {
-    const response = await fetch(POLLINATIONS_IMAGE_API, {
-      method: 'POST',
+    
+    const params = new URLSearchParams({
+      model: 'zimage',
+      width: 1024,
+      height: 1024,
+    });
+
+    const response = await fetch(`${POLLINATIONS_IMAGE_API}/${encodeURIComponent(prompt)}?model=${params.get('model')}&width=${params.get('width')}&height=${params.get('height')}`, {
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${pollinationsToken || process.env.POLLINATIONS_TOKEN}`,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.POLLINATIONS_TOKEN}`,
       },
-      body: JSON.stringify({ prompt }),
       timeout: 120000,
     });
 
@@ -53,7 +58,7 @@ async function generateImage(prompt, pollinationsToken, attempt = 0) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return await response.buffer();
+    return Buffer.from(await response.arrayBuffer());
   } catch (error) {
     if (attempt < MAX_RETRIES - 1) {
       console.log(`  ✗ Attempt ${attempt + 1} failed: ${error.message}`);
@@ -146,7 +151,7 @@ function saveGenerationMetadata(imageData, promptData) {
  */
 async function testGenerateImage() {
   const testPrompt = {
-    prompt: 'Vibrant comic book style illustration of bees pollinating flowers in a digital garden, bright colors, dynamic action, bold outlines, comic aesthetic',
+    prompt: 'Single wide comic-book splash panel, nature-first Pollinations world: a central thriving garden-forest greenhouse hybrid bursting with life, bold comic inks, organic linework, natural palette (forest greens, soil browns, sky blues, sunset oranges, floral purples), dynamic motion with wind ribbons, drifting pollen clouds, light rain sparkle, flowing rivulets, cooperative bees and small birds actively pollinating; FOUR clearly separated, distinct natural elements (one per update) arranged as readable vignettes around the center while still part of one ecosystem: (1) an “Instagram post” represented as a tall sunflower-like bloom with a naturally framed petal “window” (leaf-made border) attracting butterflies as if it’s being displayed to the meadow—seeds carried outward on the breeze to neighboring plants; (2) a bug-fix vignette: gardeners and ladybugs pruning diseased twigs and uprooting invasive weeds, revealing a clean lattice of healthy roots where tangled duplicates were removed—one main root trunk feeding multiple shoots through tidy branching, with a few pests being swept away; (3) documentation generation vignette: a young tree unfurling oversized leaves like scrolls, etched with orderly botanical patterns and tidy lines, spores of “wisdom” drifting to nearby sprouts as bees trace the patterns; (4) creative tool addition vignette: a rare new flowering plant resembling an “image grove” blossom—petals shaped like soft brushstrokes and natural pigment stains—sprouting beside an artist bower where hummingbirds and bees mix pollen like paint, creating new colorful blooms that spread into the garden; emphasize clear separation between the four elements with natural pathways and stones, visible before/after transformation energy, celebratory cooperative ecosystem blending outward, no neon, no tech UI, no text, epic vibrant splash composition.',
     summary: 'Test image generation',
     prCount: 1,
     highlights: ['test: image generation'],
@@ -172,9 +177,6 @@ async function testGenerateImage() {
   }
 }
 
-// Run test if executed directly
-if (process.argv[1]?.endsWith('generateComicImage.js')) {
-  testGenerateImage().catch(console.error);
-}
+testGenerateImage().catch(console.error);
 
-export { generateAndSaveComicImage, saveGenerationMetadata, testGenerateImage };
+// export { generateAndSaveComicImage, saveGenerationMetadata, testGenerateImage };

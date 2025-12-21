@@ -239,11 +239,7 @@ async function createMergedPrompt(prs, dateString) {
                         - Seeds traveling between plants
                         - Ecosystems blending into each other
                         - Growth spreading outward
-
-                        TECHNICAL FIDELITY REQUIREMENT:
-                        You must infer the technical intent of each update from its description and encode it visually.
-                        Nothing may be omitted.
-                        Nothing may be merged unless semantically identical.
+                        Don't put any markdown formatting simply return a single prompt. 
 `
 const userPrompt = `Generate a NATURE-THEMED comic-book splash panel for these Pollinations AI updates:
                     ${prList}
@@ -275,7 +271,7 @@ const userPrompt = `Generate a NATURE-THEMED comic-book splash panel for these P
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.8,
-        max_tokens: 1500,
+        max_tokens: 1000,
       }),
     });
 
