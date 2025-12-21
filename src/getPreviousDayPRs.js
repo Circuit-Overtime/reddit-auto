@@ -313,4 +313,40 @@ async function getPRsAndCreatePrompt(githubToken, pollinationsToken) {
   }
 }
 
+/**
+ * Test PR fetching
+ * Usage: node getPreviousDayPRs.js <github_token> [pollinations_token]
+ */
+async function testPRFetching() {
+  const githubToken = process.argv[2];
+  const pollinationsToken = process.argv[3];
+
+  if (!githubToken) {
+    console.error('Usage: node getPreviousDayPRs.js <github_token> [pollinations_token]');
+    process.exit(1);
+  }
+
+  console.log('\n╔════════════════════════════════════════════════════════════╗');
+  console.log('║              TEST PR FETCHING                              ║');
+  console.log('╚════════════════════════════════════════════════════════════╝\n');
+
+  try {
+    const result = await getPRsAndCreatePrompt(githubToken, pollinationsToken);
+
+    console.log('╔════════════════════════════════════════════════════════════╗');
+    console.log('║                  TEST PASSED ✓                            ║');
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
+    console.log(`PRs Found: ${result.prCount}`);
+    console.log(`Prompt Length: ${result.prompt.length} characters\n`);
+  } catch (error) {
+    console.error('❌ Test failed:', error.message);
+    process.exit(1);
+  }
+}
+
+// Run test if executed directly
+if (process.argv[1]?.endsWith('getPreviousDayPRs.js')) {
+  testPRFetching().catch(console.error);
+}
+
 export { getMergedPRsFromPreviousDay, createMergedPrompt, getPRsAndCreatePrompt, getPreviousDayRange };

@@ -195,39 +195,40 @@ function saveGenerationMetadata(imageData, promptData) {
 }
 
 /**
- * Main workflow: Get PRs -> Create prompt -> Generate image -> Save
+ * Test image generation with a test prompt
+ * Usage: node generateComicImage.js
  */
-async function generateComicFromPRs(githubToken) {
-  try {
-    // Import PR module
-    const { getPRsAndCreatePrompt } = await import('./getPreviousDayPRs.js');
+async function testGenerateImage() {
+  const testPrompt = {
+    prompt: 'A vibrant comic book style illustration of bees pollinating code flowers in a digital garden, bright vibrant colors, dynamic action, bold outlines, comic aesthetic',
+    summary: 'Test image generation - no PRs',
+    prCount: 0,
+    highlights: ['test: image generation'],
+    prs: [],
+  };
 
-    // Step 1: Get PRs and create merged prompt
-    const promptData = await getPRsAndCreatePrompt(githubToken);
+  console.log('\n╔════════════════════════════════════════════════════════════╗');
+  console.log('║              TEST IMAGE GENERATION                         ║');
+  console.log('╚════════════════════════════════════════════════════════════╝\n');
 
-    // Step 2: Generate comic image and save
-    const imageData = await generateAndSaveComicImage(promptData);
+  const result = await generateAndSaveComicImage(testPrompt);
 
-    if (!imageData.success) {
-      throw new Error(imageData.error);
-    }
-
-    // Step 3: Save metadata
-    const metadataPath = saveGenerationMetadata(imageData, promptData);
-
-    console.log('=== Comic Generation Complete ===');
-    console.log(`Image: ${imageData.filename}`);
-    console.log(`Metadata: ${path.basename(metadataPath)}`);
-
-    return {
-      imageData,
-      promptData,
-      metadataPath,
-    };
-  } catch (error) {
-    console.error('Comic generation workflow failed:', error);
-    throw error;
+  if (result.success) {
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║                  TEST PASSED ✓                            ║');
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
+    console.log(`File: ${result.filename}`);
+    console.log(`Path: ${result.filepath}`);
+    console.log(`Size: ${result.fileSizeKb} KB\n`);
+  } else {
+    console.log('\n❌ Test failed:', result.error);
+    process.exit(1);
   }
 }
 
-export { generateAndSaveComicImage, saveGenerationMetadata, generateComicFromPRs, enhanceComicPrompt };
+// Run test if executed directly
+if (process.argv[1]?.endsWith('generateComicImage.js')) {
+  testGenerateImage().catch(console.error);
+}
+
+export { generateAndSaveComicImage, saveGenerationMetadata, enhanceComicPrompt, testGenerateImage };

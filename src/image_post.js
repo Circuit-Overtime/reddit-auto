@@ -31,10 +31,10 @@ async function checkSubredditAccess(context) {
 }
 
 /**
- * Initialize and verify bot access
+ * Verify bot connection to Reddit
  */
-async function initializeBotAccess(context) {
-  console.log(`\n=== Checking Bot Access ===`);
+async function verifyBotConnection(context) {
+  console.log(`\n=== Verifying Bot Connection ===`);
   console.log(`Target subreddit: r/${TARGET_SUBREDDIT}`);
   
   const hasAccess = await checkSubredditAccess(context);
@@ -45,82 +45,118 @@ async function initializeBotAccess(context) {
     return false;
   }
   
-  console.log('✓ Bot access verified successfully\n');
+  console.log('✓ Bot connection verified successfully\n');
   return true;
 }
 
 /**
- * Main entrypoint orchestrating the complete workflow:
- * 1. Fetch PRs from previous day
- * 2. Generate combined prompt
- * 3. Generate comic image
- * 4. Verify bot connection (no posting)
+ * Post image to Reddit subreddit
+ * Returns the post object if successful
  */
-async function runComicGenerationWorkflow(githubToken, pollinationsToken, context = null) {
+async function postImageToReddit(context, imageData, promptData) {
+  try {
+    console.log(`\n=== Posting to Reddit ===`);
+    
+    const subreddit = await context.reddit.getSubredditById(`t5_placeholder_${TARGET_SUBREDDIT}`);
+
+    // Create post title
+    const title = `🤖 Comic: ${promptData.prCount} PRs Merged Today`;
+
+    // Create post body with PR highlights
+    let body = `# Daily Pollinations Update Comic\n\n`;
+    body += `**PRs Merged:** ${promptData.prCount}\n\n`;
+    
+    if (promptData.highlights && promptData.highlights.length > 0) {
+      body += `## Highlights\n`;
+      promptData.highlights.forEach(h => {
+        body += `• ${h}\n`;
+      });
+      body += `\n`;
+    }
+
+    body += `**Generated with:** Pollinations AI\n`;
+    body += `**Seed:** ${imageData.seed}\n`;
+    body += `**Model:** ${imageData.metadata.model}\n`;
+
+    console.log(`Posting: "${title}"`);
+    console.log(`Body preview:\n${body.substring(0, 200)}...\n`);
+
+    // Create the post with image
+    const post = await subreddit.submitImage({
+      title,
+      imagePath: imageData.filepath,
+      preview: body,
+    });
+
+    console.log(`✓ Successfully posted to r/${TARGET_SUBREDDIT}`);
+    console.log(`Post URL: ${post.permalink}`);
+    
+    return post;
+  } catch (error) {
+    console.error('❌ Failed to post to Reddit:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * MAIN WORKFLOW: PR => IMAGE => POST
+ * Complete pipeline: Fetch PRs → Generate Image → Post to Reddit
+ * 
+ * @param {string} githubToken - GitHub API token
+ * @param {string} pollinationsToken - Pollinations API token (optional)
+ * @param {object} context - Devvit context (required for posting)
+ * @returns {object} Complete workflow result
+ */
+async function runFullWorkflow(githubToken, pollinationsToken, context) {
   try {
     console.log('\n╔════════════════════════════════════════════════════════════╗');
-    console.log('║          COMIC GENERATION WORKFLOW - FULL PIPELINE          ║');
+    console.log('║           FULL WORKFLOW: PR → IMAGE → POST                 ║');
     console.log('╚════════════════════════════════════════════════════════════╝\n');
 
-    // Step 1: Fetch PRs and create merged prompt
+    // STEP 1: Fetch PRs and generate prompt
     console.log('📋 STEP 1: Fetching PRs from previous day...');
     const promptData = await getPRsAndCreatePrompt(githubToken, pollinationsToken);
     
     if (!promptData) {
       throw new Error('Failed to generate prompt from PRs');
     }
+    console.log(`✓ Fetched ${promptData.prCount} PRs and generated prompt\n`);
 
-    console.log(`✓ Generated prompt with ${promptData.prCount} PRs\n`);
-
-    // Step 2: Generate comic image using the prompt
-    console.log('🎨 STEP 2: Generating comic image with merged prompt...');
+    // STEP 2: Generate comic image
+    console.log('🎨 STEP 2: Generating comic image...');
     const imageData = await generateAndSaveComicImage(promptData, pollinationsToken);
     
     if (!imageData.success) {
       throw new Error(`Image generation failed: ${imageData.error}`);
     }
+    console.log(`✓ Image generated: ${imageData.filename}\n`);
 
-    console.log(`✓ Image generated successfully: ${imageData.filename}\n`);
-
-    // Step 3: Verify bot connection (if context provided)
-    let botStatus = { connected: false, message: 'No context provided' };
-    if (context) {
-      console.log('🤖 STEP 3: Verifying bot connection...');
-      botStatus.connected = await initializeBotAccess(context);
-      botStatus.message = botStatus.connected 
-        ? 'Bot is ready for operations' 
-        : 'Bot access verification failed';
-      console.log(`✓ Bot verification complete\n`);
-    } else {
-      console.log('⚠️  STEP 3: Bot connection verification skipped (no context)\n');
+    // STEP 3: Verify bot connection
+    console.log('🤖 STEP 3: Verifying bot connection...');
+    const botConnected = await verifyBotConnection(context);
+    
+    if (!botConnected) {
+      throw new Error('Bot connection verification failed');
     }
+    console.log(`✓ Bot connection verified\n`);
+
+    // STEP 4: Post to Reddit
+    console.log('📤 STEP 4: Posting to Reddit...');
+    const post = await postImageToReddit(context, imageData, promptData);
+    console.log(`✓ Posted successfully\n`);
 
     // Summary
     console.log('╔════════════════════════════════════════════════════════════╗');
-    console.log('║                    WORKFLOW COMPLETE                        ║');
+    console.log('║                  WORKFLOW COMPLETE ✓                       ║');
     console.log('╚════════════════════════════════════════════════════════════╝\n');
 
     return {
       success: true,
-      steps: {
-        prFetch: {
-          success: true,
-          prCount: promptData.prCount,
-          highlights: promptData.highlights,
-        },
-        imageGeneration: {
-          success: imageData.success,
-          filename: imageData.filename,
-          filepath: imageData.filepath,
-          filesize: imageData.fileSizeKb,
-        },
-        botVerification: {
-          success: botStatus.connected,
-          message: botStatus.message,
-        },
-      },
-      imageData,
-      promptData,
+      prCount: promptData.prCount,
+      imageFile: imageData.filename,
+      imageSize: imageData.fileSizeKb,
+      postUrl: post.permalink,
+      postId: post.id,
     };
   } catch (error) {
     console.error('\n❌ Workflow failed:', error.message);
@@ -131,29 +167,4 @@ async function runComicGenerationWorkflow(githubToken, pollinationsToken, contex
   }
 }
 
-/**
- * Standalone entry point for testing (without Devvit context)
- * Usage: node image_post.js <github_token> [pollinations_token]
- */
-async function standaloneEntrypoint() {
-  const githubToken = process.argv[2];
-  const pollinationsToken = process.argv[3];
-
-  if (!githubToken) {
-    console.error('Usage: node image_post.js <github_token> [pollinations_token]');
-    process.exit(1);
-  }
-
-  const result = await runComicGenerationWorkflow(githubToken, pollinationsToken);
-  
-  if (!result.success) {
-    process.exit(1);
-  }
-}
-
-// Run standalone if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  standaloneEntrypoint().catch(console.error);
-}
-
-export { runComicGenerationWorkflow, initializeBotAccess, TARGET_SUBREDDIT };
+export { runFullWorkflow, verifyBotConnection, postImageToReddit, TARGET_SUBREDDIT };
