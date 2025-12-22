@@ -9,15 +9,13 @@ Devvit.addMenuItem({
     const externalUrl = LINK;
 
     try {
-      // 1. Upload the external image to Reddit's servers first
+
       const imageAsset = await context.media.upload({
         url: externalUrl,
         type: 'image',
       });
 
-      console.log('Image uploaded to Reddit:', imageAsset);
-
-      // 2. Submit the post using the i.redd.it URL returned by the upload
+      await new Promise((resolve) => setTimeout(resolve, 5000));
       await context.reddit.submitPost({
         subredditName: context.subredditName ?? 'pollinations_ai',
         title: 'Pollinations AI – Generated Visual',
@@ -25,11 +23,14 @@ Devvit.addMenuItem({
         imageUrls: [imageAsset.mediaUrl],
       });
 
-
       context.ui.showToast('Image posted successfully!');
     } catch (error) {
-      console.error('Upload failed:', error);
-      context.ui.showToast('Failed to upload image to Reddit.');
+      if (error instanceof Error && error.message.includes('is being created asynchronously')) {
+        context.ui.showToast('Image posted! Processing on Reddit...');
+      } else {
+        console.error('Upload failed:', error);
+        context.ui.showToast('Failed to upload image to Reddit.');
+      }
     }
   },
 });
