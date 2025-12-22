@@ -4,7 +4,7 @@
     "media": true,
     "reddit": true,
     "http": {
-      "domains": ["api.github.com"]
+      "domains": ["api.github.com", "gen.pollinations.ai"]
     }
   },
   "blocks": {
