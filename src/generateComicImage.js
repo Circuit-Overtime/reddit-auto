@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import {getPRsAndCreatePrompt} from './getPreviousDayPRs.js';
+import { isRPLColor } from '@devvit/public-api/devvit/internals/helpers/color.js';
 
 dotenv.config();
 
@@ -56,7 +57,10 @@ async function generateImage(prompt, pollinationsToken, attempt = 0) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     console.log(`URL: ${URL}`);
-    return Buffer.from(await response.arrayBuffer());
+    return {
+        buffer : Buffer.from(await response.arrayBuffer()),
+        url : URL
+    }
   } catch (error) {
     if (attempt < MAX_RETRIES - 1) {
       console.log(`  ✗ Attempt ${attempt + 1} failed: ${error.message}`);
@@ -85,25 +89,17 @@ async function generateAndSaveComicImage(promptData, pollinationsToken = null) {
     const imageBuffer = await generateImage(promptData.prompt, pollinationsToken);
 
     // Save to disk
-    fs.writeFileSync(filepath, imageBuffer);
-    const fileSizeKb = (imageBuffer.length / 1024).toFixed(2);
+    fs.writeFileSync(filepath, imageBuffer.buffer);
+    const fileSizeKb = (imageBuffer.buffer.length / 1024).toFixed(2);
 
     console.log(`\n✓ Image saved successfully`);
     console.log(`  Filename: ${filename}`);
     console.log(`  Size: ${fileSizeKb} KB\n`);
 
     return {
-      success: true,
-      filepath,
-      filename,
-      filesize: imageBuffer.length,
-      fileSizeKb,
-      timestamp,
-      prompt: promptData.prompt,
-      metadata: {
-        prCount: promptData.prCount,
-        prReferences: promptData.prs || [],
-      },
+        success: true,
+        url : imageBuffer.url,
+        
     };
   } catch (error) {
     console.error('Error generating image:', error.message);
@@ -123,7 +119,9 @@ async function testGenerateImage() {
   console.log('╚════════════════════════════════════════════════════════════╝\n');
 
   const prompt = await getPRsAndCreatePrompt(githubToken);
-  const result = await generateAndSaveComicImage(testPrompt);
+  const result = await generateAndSaveComicImage(prompt);
+  console.log(result.url);
+
 
   if (result.success) {
     console.log('╔════════════════════════════════════════════════════════════╗');
