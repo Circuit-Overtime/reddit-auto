@@ -1,6 +1,22 @@
-import { Devvit } from '@devvit/public-api';
+import { Devvit, SettingScope } from '@devvit/public-api';
 import {getPRsAndCreatePrompt, generateImage, generateTitleFromPRs } from './pipeline.ts';
 
+Devvit.addSettings([
+  {
+    name: 'github_token',
+    label: 'GitHub Token',
+    type: 'string',
+    scope: SettingScope.App, 
+    isSecret: true,
+  },
+  {
+    name: 'polli_token',
+    label: 'Pollinations API Token',
+    type: 'string',
+    scope: SettingScope.App, 
+    isSecret: true,
+  },
+]);
 
 Devvit.addMenuItem({
   label: 'Post Pollinations Image',
@@ -8,18 +24,18 @@ Devvit.addMenuItem({
   onPress: async (_, context) => {
     try {
       const githubToken = await context.settings.get('github_token');
-      const pollactionsToken = await context.settings.get('pollinations_token');
+      const pollinationsToken = await context.settings.get('polli_token');
       
       if (!githubToken) {
         throw new Error('GitHub token not configured. Please set it in app settings.');
       }
-      if (!pollactionsToken) {
+      if (!pollinationsToken) {
         throw new Error('Pollinations token not configured. Please set it in app settings.');
       }
       
-      const promptData = await getPRsAndCreatePrompt(githubToken as string, pollactionsToken as string);
-      const imageData = await generateImage(promptData.prompt, pollactionsToken as string);
-      const title = await generateTitleFromPRs(promptData.summary, String(promptData.prCount), pollactionsToken as string);
+      const promptData = await getPRsAndCreatePrompt(githubToken as string, pollinationsToken as string);
+      const imageData = await generateImage(promptData.prompt, pollinationsToken as string);
+      const title = await generateTitleFromPRs(promptData.summary, String(promptData.prCount), pollinationsToken as string);
 
       const imageAsset = await context.media.upload({
       url: imageData.url,

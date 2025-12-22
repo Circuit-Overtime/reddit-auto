@@ -7,18 +7,6 @@
       "domains": ["api.github.com"]
     }
   },
-  "settings": {
-    "global": {
-      "github_token": {
-        "type": "string",
-        "label": "GitHub Token"
-      },
-      "pollinations_token": {
-        "type": "string",
-        "label": "Pollinations API Token"
-      }
-    }
-  },
   "blocks": {
     "entry": "src/main.ts"
   },
