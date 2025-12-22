@@ -1,7 +1,3 @@
-import fs from 'fs';
-import path from 'path';
-import dotenv from 'dotenv';
-dotenv.config();
 
 
 const POLLINATIONS_IMAGE_API = 'https://gen.pollinations.ai/image';
@@ -22,7 +18,7 @@ function getPreviousDayRange() {
 }
 
 
-async function getMergedPRsFromPreviousDay(owner = 'pollinations', repo = 'pollinations', githubToken : string) {
+async function getMergedPRsFromPreviousDay(owner : any = 'pollinations', repo : any = 'pollinations', githubToken : string) {
     if (!githubToken) {
         throw new Error('GitHub token is required');
     }
