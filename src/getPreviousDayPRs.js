@@ -16,6 +16,56 @@ function getPreviousDayRange() {
   };
 }
 
+
+async function generateTitleFromPRs(prSummary, prCount) {
+  try {
+    const systemPrompt = `You are a Reddit post title generator. Create an engaging, catchy post title (max 12 words) for a development update. Be enthusiastic but professional. No brackets, no metrics.`;
+    const userPrompt = `Generate a Reddit post title for this dev update:
+${prSummary}
+
+Title only, no explanation.`;
+
+    const response = await fetch(POLLINATIONS_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.POLLINATIONS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        model: 'openai-large',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.8,
+        max_tokens: 60,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    let title = data.choices?.[0]?.message?.content?.trim() || '';
+    
+    // Clean up title - remove quotes if present
+    title = title.replace(/^["']|["']$/g, '').trim();
+    
+    // Fallback if title is too short or empty
+    if (!title || title.length < 5) {
+      title = `Pollinations: ${prCount} Updates Shipped`;
+    }
+
+    return title;
+  } catch (error) {
+    console.error('PR title generation failed:', error.message);
+    return `Pollinations: ${prCount} Updates Shipped`;
+  }
+}
+
+
+
 async function getMergedPRsFromPreviousDay(owner = 'pollinations', repo = 'pollinations', githubToken) {
   if (!githubToken) {
     throw new Error('GitHub token is required');
@@ -303,4 +353,4 @@ async function testPRFetching() {
   }
 }
 
-export { getMergedPRsFromPreviousDay, createMergedPrompt, getPRsAndCreatePrompt, getPreviousDayRange };
+export {getPRsAndCreatePrompt, generateTitleFromPRs};

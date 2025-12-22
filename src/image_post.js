@@ -68,4 +68,4 @@ const testImageDesc = ''
     console.error('Test failed:', error);
   }
 })();
-export { postImageToReddit, TARGET_SUBREDDIT };
+
