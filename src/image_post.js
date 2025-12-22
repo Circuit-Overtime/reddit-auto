@@ -1,29 +1,26 @@
-import dotenv from 'dotenv';
-dotenv.config();
-const TARGET_SUBREDDIT = 'pollinations_ai';
+export async function postImageToSubreddit(
+  context,
+  subredditName,
+  title,
+  imageArrayBuffer
+) {
+  // Upload image to Reddit (binary, not URL)
+  const upload = await context.reddit.uploadMedia({
+    subredditName,
+    mimeType: 'image/png',
+    data: imageArrayBuffer, // ArrayBuffer or Uint8Array
+  });
 
-
-async function postImageToReddit(context, imagePath, imageDescription) {
-  try {
-    const subreddit = await context.reddit.getSubredditById(`t5_placeholder_${TARGET_SUBREDDIT}`);
-    
-    const title = await generateTitleFromImage(imageDescription);
-
-    const post = await subreddit.submitImage({
-      title,
-      imagePath,
-      preview: imageDescription,
-    });
-
-    console.log(`✓ Posted: ${title}`);
-    console.log(`URL: ${post.permalink}`);
-    
-    return post;
-  } catch (error) {
-    console.error('❌ Failed to post:', error.message);
-    throw error;
+  if (!upload || !upload.mediaId) {
+    throw new Error('Reddit image upload failed');
   }
+
+  // Submit image post
+  const post = await context.reddit.submitPost({
+    subredditName,
+    title,
+    mediaId: upload.mediaId,
+  });
+
+  return post;
 }
-
-
-export default postImageToReddit;

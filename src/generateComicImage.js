@@ -109,10 +109,27 @@ async function testGenerateImage() {
 
   const promptData = await getPRsAndCreatePrompt(githubToken);
   const result = await generateAndSaveComicImage(promptData);
-  console.log('\nGenerated Image URL:', result.url);
+  
+  if (!result.success) {
+    console.log('\n❌ Test failed: Failed to generate image');
+    process.exit(1);
+  }
+
+  console.log('\n=== Generating Reddit Post Title ===\n');
   const title = await generateTitleFromPRs(promptData.summary, promptData.prCount);
-  const post = await postImageToReddit()
-  console.log(result.url);
+  console.log(`Generated Title: ${title}\n`);
+
+  console.log('\n=== Posting to Reddit ===\n');
+  try {
+    await postImageToReddit(result.url, title, promptData.summary);
+    
+    console.log('╔════════════════════════════════════════════════════════════╗');
+    console.log('║                  TEST PASSED ✓                            ║');
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
+  } catch (error) {
+    console.log('\n❌ Test failed:', error.message);
+    process.exit(1);
+  }
 }
 
 testGenerateImage().catch(console.error);
