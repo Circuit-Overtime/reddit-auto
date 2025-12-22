@@ -275,7 +275,7 @@ async function getPRsAndCreatePrompt(githubToken) {
 
 async function generateTitleFromPRs(prSummary, prCount) {
     try {
-        const systemPrompt = `You are a Reddit post title generator. Create an engaging, catchy post title (max 12 words) for a development update. Be enthusiastic but professional. No brackets, no metrics.`;
+        const systemPrompt = `You are a Reddit post title generator. Generate a catchy yet descriptive development update title, maximum 12 words. The title must be clear, engaging, and professional, with natural enthusiasm. Avoid brackets, numbers, metrics, emojis, hashtags, or promotional language. Prioritize concrete features or improvements over vague hype.`;
         const userPrompt = `Generate a Reddit post title for this dev update:
 ${prSummary}
 
