@@ -1,36 +1,37 @@
-import { Devvit, RunAs } from '@devvit/public-api';
 import {LINK, TITLE} from './link.js';
+import { Devvit } from '@devvit/public-api';
 
-Devvit.addMenuItem({
-  label: 'Post Pollinations Image',
-  location: 'subreddit',
-  onPress: async (_, context) => {
+Devvit.configure({
+  redditAPI: true,
+  media: true,
+});
+
+Devvit.addTrigger({
+  event: 'AppUpgrade',
+  onEvent: async (event, context) => {
     try {
-     
-
       const imageAsset = await context.media.upload({
-      url: LINK,
-      type: 'image',
+        url: LINK,
+        type: 'image',
       });
 
       await new Promise((resolve) => setTimeout(resolve, 5000));
-      await context.reddit.submitPost({
-      subredditName: context.subredditName ?? 'pollinations_ai',
-      runAs: "USER",
-      title: TITLE,
-      kind: 'image',
-      imageUrls: [imageAsset.mediaUrl],
+
+      const post = await context.reddit.submitPost({
+        subredditName: 'pollinations_ai',
+        title: TITLE,
+        kind: 'image',
+        imageUrls: [imageAsset.mediaUrl],
       });
 
-      context.ui.showToast('Image posted successfully!');
-    }
-    
-    catch (error) {
-      if (error instanceof Error && error.message.includes('is being created asynchronously')) {
-        context.ui.showToast('Image posted! Processing on Reddit...');
+      console.log(`Posted image with ID: ${post.id}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes('being created asynchronously')) {
+        console.log('✅ Image is being posted asynchronously and will appear soon');
       } else {
-        console.error('Upload failed:', error);
-        context.ui.showToast('Failed to upload image to Reddit.');
+        console.error('❌ Error posting image:', error);
       }
     }
   },
