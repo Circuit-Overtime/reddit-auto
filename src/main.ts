@@ -1,30 +1,37 @@
 import { Devvit, SettingScope } from '@devvit/public-api';
 import {getPRsAndCreatePrompt, generateImage, generateTitleFromPRs } from './pipeline.ts';
 
+Devvit.configure({
+  http: {
+    domains: ['https://gen.pollinations.ai', 'https://api.github.com'],
+  },
+});
+
+
 Devvit.addSettings([
   {
-    name: 'github_token',
-    label: 'GitHub Token',
     type: 'string',
-    scope: SettingScope.App, 
+    name: 'gh_token',
+    label: 'GitHub Token',
     isSecret: true,
+    scope: SettingScope.App, 
   },
   {
-    name: 'polli_token',
-    label: 'Pollinations API Token',
     type: 'string',
-    scope: SettingScope.App, 
+    name: 'p_key',
+    label: 'Polli Key',
     isSecret: true,
+    scope: SettingScope.App,
   },
-]);
+])
 
 Devvit.addMenuItem({
   label: 'Post Pollinations Image',
   location: 'subreddit',
   onPress: async (_, context) => {
     try {
-      const githubToken = await context.settings.get('github_token');
-      const pollinationsToken = await context.settings.get('polli_token');
+      const githubToken = await context.settings.get('gh_token');
+      const pollinationsToken = await context.settings.get('p_key');
       
       if (!githubToken) {
         throw new Error('GitHub token not configured. Please set it in app settings.');

@@ -2,10 +2,7 @@
   "name": "polli-ai",
   "permissions": {
     "media": true,
-    "reddit": true,
-    "http": {
-      "domains": ["api.github.com", "gen.pollinations.ai"]
-    }
+    "reddit": true
   },
   "blocks": {
     "entry": "src/main.ts"
