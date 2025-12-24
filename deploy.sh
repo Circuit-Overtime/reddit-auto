@@ -37,6 +37,7 @@ while [ $elapsed -lt $timeout ]; do
     echo "✅ Image post triggered successfully!"
     echo "Exiting safely..."
     kill $PLAYTEST_PID 2>/dev/null
+    wait $PLAYTEST_PID 2>/dev/null
     exit 0
   fi
   
